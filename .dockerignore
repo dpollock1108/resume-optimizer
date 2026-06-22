@@ -1,0 +1,12 @@
+.git
+.gitignore
+.claude
+.env
+**/.env
+**/.env.local
+**/node_modules
+**/dist
+**/venv
+**/__pycache__
+**/*.pyc
+frontend/src/assets/hero.png
