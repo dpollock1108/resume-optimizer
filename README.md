@@ -2,6 +2,8 @@
 
 A private web app that tailors resumes to job postings using Claude. The production setup runs the React frontend and FastAPI backend as one Cloud Run service protected by Google Cloud Identity-Aware Proxy (IAP). Profiles and application history are stored per user in Firestore.
 
+For the GitHub Actions CI/CD workflow and guided setup, see [`docs/CI_CD.md`](docs/CI_CD.md).
+
 ## Security model
 
 - IAP requires an explicitly authorized Google account before any request reaches Cloud Run.

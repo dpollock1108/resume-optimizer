@@ -33,6 +33,7 @@ load_dotenv(".env.local")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Resume Optimizer")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 
 @app.exception_handler(GoogleAPICallError)
@@ -58,7 +59,9 @@ if os.getenv("APP_ENV", "development") == "development":
         allow_headers=["*"],
     )
 
-client = Anthropic()
+def anthropic_client() -> Anthropic:
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    return Anthropic(api_key=api_key or None)
 
 
 class AnalyzeRequest(BaseModel):
@@ -204,8 +207,8 @@ async def analyze(
     )
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
+        message = anthropic_client().messages.create(
+            model=ANTHROPIC_MODEL,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -380,8 +383,8 @@ async def prep(
     )
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+        message = anthropic_client().messages.create(
+            model=ANTHROPIC_MODEL,
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
