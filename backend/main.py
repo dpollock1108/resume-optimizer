@@ -76,6 +76,39 @@ def extract_text(message) -> str:
     raise ValueError("No text block in Anthropic response")
 
 
+def parse_json_response(message) -> dict:
+    """Parse a JSON object out of an Anthropic response.
+
+    Tolerates markdown ``` / ```json fences and any leading/trailing prose by
+    falling back to the outermost {...} span. Logs the raw text on failure so
+    truncated or malformed responses are debuggable.
+    """
+    raw = extract_text(message).strip()
+
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1]
+        if raw.rstrip().endswith("```"):
+            raw = raw.rstrip()[:-3]
+    raw = raw.strip()
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        start, end = raw.find("{"), raw.rfind("}")
+        if start != -1 and end > start:
+            try:
+                return json.loads(raw[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+        logger.error(
+            "Failed to parse Anthropic JSON (stop_reason=%s, len=%d): %.500s",
+            getattr(message, "stop_reason", "?"),
+            len(raw),
+            raw,
+        )
+        raise HTTPException(status_code=502, detail="Failed to parse API response as JSON")
+
+
 class AnalyzeRequest(BaseModel):
     resume: str = Field(min_length=1, max_length=50_000)
     job_posting: str = Field(min_length=1, max_length=50_000)
@@ -221,23 +254,14 @@ async def analyze(
     try:
         message = anthropic_client().messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=4096,
+            max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception:
         logger.exception("Anthropic analysis request failed for user %s", user.id)
         raise HTTPException(status_code=502, detail="AI analysis request failed") from None
 
-    raw = extract_text(message).strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1]
-        if raw.endswith("```"):
-            raw = raw[:-3]
-
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail="Failed to parse API response as JSON")
+    data = parse_json_response(message)
 
     return AnalyzeResponse(**data)
 
@@ -397,23 +421,14 @@ async def prep(
     try:
         message = anthropic_client().messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=4096,
+            max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception:
         logger.exception("Anthropic prep request failed for user %s", user.id)
         raise HTTPException(status_code=502, detail="AI prep request failed") from None
 
-    raw = extract_text(message).strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1]
-        if raw.endswith("```"):
-            raw = raw[:-3]
-
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail="Failed to parse API response as JSON")
+    data = parse_json_response(message)
 
     return PrepResponse(**data)
 
