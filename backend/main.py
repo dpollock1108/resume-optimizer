@@ -91,13 +91,15 @@ def parse_json_response(message) -> dict:
             raw = raw.rstrip()[:-3]
     raw = raw.strip()
 
+    # strict=False allows literal newlines/tabs inside strings — the model emits
+    # real line breaks inside the tailored_resume value rather than escaping them.
     try:
-        return json.loads(raw)
+        return json.loads(raw, strict=False)
     except json.JSONDecodeError:
         start, end = raw.find("{"), raw.rfind("}")
         if start != -1 and end > start:
             try:
-                return json.loads(raw[start : end + 1])
+                return json.loads(raw[start : end + 1], strict=False)
             except json.JSONDecodeError:
                 pass
         logger.error(
