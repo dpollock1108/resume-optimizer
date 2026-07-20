@@ -64,6 +64,18 @@ def anthropic_client() -> Anthropic:
     return Anthropic(api_key=api_key or None)
 
 
+def extract_text(message) -> str:
+    """Return the first text block's content.
+
+    Models with extended thinking (e.g. claude-sonnet-5) emit a ThinkingBlock
+    as content[0], so we can't assume index 0 is text.
+    """
+    for block in message.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise ValueError("No text block in Anthropic response")
+
+
 class AnalyzeRequest(BaseModel):
     resume: str = Field(min_length=1, max_length=50_000)
     job_posting: str = Field(min_length=1, max_length=50_000)
@@ -216,7 +228,7 @@ async def analyze(
         logger.exception("Anthropic analysis request failed for user %s", user.id)
         raise HTTPException(status_code=502, detail="AI analysis request failed") from None
 
-    raw = message.content[0].text.strip()
+    raw = extract_text(message).strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1]
         if raw.endswith("```"):
@@ -392,7 +404,7 @@ async def prep(
         logger.exception("Anthropic prep request failed for user %s", user.id)
         raise HTTPException(status_code=502, detail="AI prep request failed") from None
 
-    raw = message.content[0].text.strip()
+    raw = extract_text(message).strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1]
         if raw.endswith("```"):

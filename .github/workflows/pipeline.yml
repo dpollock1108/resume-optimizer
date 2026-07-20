@@ -108,6 +108,19 @@ jobs:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ steps.image.outputs.uri }}
+          service_account: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
+          # Full desired state is declared here so a bad manual deploy can never
+          # persist — every pipeline run overwrites env/secrets back to these values.
+          secrets: |
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+          env_vars: |
+            APP_ENV=production
+            ANTHROPIC_MODEL=claude-sonnet-5
+            IAP_AUDIENCE=/projects/450317661331/locations/us-west1/services/resume-optimizer
+            AI_REQUESTS_PER_HOUR=10
+            LEGACY_MIGRATION_EMAIL=dpollock1108@gmail.com
+            LEGACY_MIGRATION_USER_ID=local-user
+          flags: "--no-allow-unauthenticated --max-instances=3"
 
       - name: Summarize deployment
         run: |
